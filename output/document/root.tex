@@ -1,0 +1,40 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{isabelle,isabellesym}
+
+% this should be the last package used
+\usepackage{pdfsetup}
+
+% urls in roman style, theory text in math-similar italics
+\urlstyle{rm}
+\isabellestyle{it}
+
+
+\begin{document}
+
+\title{Maximum Segment Sum}
+\author{Nils Cremer}
+\maketitle
+
+\begin{abstract}
+  The \emph{maximum segment sum} problem is to compute, given a list of numbers,
+the largest of the sums of the contiguous segments of that list. It is also known
+as the \emph{maximum sum subarray} problem and has been considered many times in the literature;
+the Wikipedia article ``Maximum subarray problem''\cite{wiki} is a good starting point.
+
+We assume that the elements of the list are not necessarily numbers but just elements
+of some linearly ordered additive Abelian group.
+\end{abstract}
+
+\tableofcontents
+
+% sane default for proof documents
+\parindent 0pt\parskip 0.5ex
+
+% generated text of all theories
+\input{session}
+
+\bibliographystyle{abbrv}
+\bibliography{root}
+
+\end{document}

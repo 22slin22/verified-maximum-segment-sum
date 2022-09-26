@@ -1,16 +1,32 @@
-theory MaximumSegmentSum
+section \<open>Maximum Segment Sum\<close>
+
+theory Maximum_Segment_Sum
   imports Main
 begin
 
-fun mss_rec_naive_aux :: "int list \<Rightarrow> int" where
+text \<open>The \emph{maximum segment sum} problem is to compute, given a list of numbers,
+the largest of the sums of the contiguous segments of that list. It is also known
+as the \emph{maximum sum subarray} problem and has been considered many times in the literature;
+the Wikipedia article ``Maximum subarray problem''
+\<^url>\<open>https://en.wikipedia.org/wiki/Maximum_subarray_problem\<close> is a good starting point.
+
+We assume that the elements of the list are not necessarily numbers but just elements
+of some linearly ordered additive Abelian group.\<close>
+
+context linordered_ab_group_add
+begin
+
+subsection \<open>Naive Solution\<close>
+
+fun mss_rec_naive_aux :: "'a list \<Rightarrow> 'a" where
   "mss_rec_naive_aux [] = 0"
 | "mss_rec_naive_aux (x#xs) = max 0 (x + mss_rec_naive_aux xs)"
 
-fun mss_rec_naive :: "int list \<Rightarrow> int" where
+fun mss_rec_naive :: "'a list \<Rightarrow> 'a" where
   "mss_rec_naive [] = 0"
 | "mss_rec_naive (x#xs) = max (mss_rec_naive_aux (x#xs)) (mss_rec_naive xs)"
 
-definition fronts :: "int list \<Rightarrow> int list set" where
+definition fronts :: "'a list \<Rightarrow> 'a list set" where
   "fronts xs = {as. \<exists>bs. xs = as @ bs}"
 
 definition "front_sums xs \<equiv> sum_list ` fronts xs"
@@ -41,26 +57,26 @@ lemma front_sums_not_empty: "front_sums xs \<noteq> {}"
   unfolding front_sums_def fronts_def using image_iff by fastforce
 
 lemma max_front_sum: "Max (front_sums (x#xs)) = max 0 (x + Max (front_sums xs))"
-  using finite_front_sums front_sums_not_empty by (auto simp add: front_sums_cons hom_Max_commute)
+using finite_front_sums front_sums_not_empty
+by (auto simp add: front_sums_cons hom_Max_commute max_add_distrib_right)
 
 lemma mss_rec_naive_aux_front_sums: "mss_rec_naive_aux xs = Max (front_sums xs)"
-  by (induction xs) (simp add: front_sums_def fronts_def, auto simp: max_front_sum)
+by (induction xs) (simp add: front_sums_def fronts_def, auto simp: max_front_sum)
 
 lemma front_sums: "front_sums xs = {s. \<exists>as bs. xs = as @ bs \<and> s = sum_list as}"
-  unfolding front_sums_def fronts_def by auto
+unfolding front_sums_def fronts_def by auto
 
 lemma mss_rec_naive_aux: "mss_rec_naive_aux xs = Max {s. \<exists>as bs. xs = as @ bs \<and> s = sum_list as}"
-  using front_sums mss_rec_naive_aux_front_sums by simp
+using front_sums mss_rec_naive_aux_front_sums by simp
   
 
-
-definition mids :: "int list \<Rightarrow> int list set" where
+definition mids :: "'a list \<Rightarrow> 'a list set" where
   "mids xs \<equiv> {bs. \<exists>as cs. xs = as @ bs @ cs}"
 
 definition "mid_sums xs \<equiv> sum_list ` mids xs"
 
 lemma fronts_mids: "bs \<in> fronts xs \<Longrightarrow> bs \<in> mids xs"
-  unfolding fronts_def mids_def by auto
+unfolding fronts_def mids_def by auto
 
 lemma mids_mids_cons: "bs \<in> mids xs \<Longrightarrow> bs \<in> mids (x#xs)"
 proof-
@@ -115,10 +131,52 @@ theorem mss_rec_naive: "mss_rec_naive xs = Max {s. \<exists>as bs cs. xs = as @ 
   unfolding mss_rec_naive_max_mid_sum mid_sums by simp
 
 
-fun kadane :: "int list \<Rightarrow> int \<Rightarrow> int \<Rightarrow> int" where
-  "kadane [] cur m = max cur m"
+subsection \<open>Kadane's Algorithms\<close>
+
+fun kadane :: "'a list \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a" where
+  "kadane [] cur m = m"
 | "kadane (x#xs) cur m =
-    (let cur' = max x (cur + x) in
+    (let cur' = max (cur + x) x in
       kadane xs cur' (max m cur'))"
+
+definition "mss_kadane xs \<equiv> kadane xs 0 0"
+
+lemma Max_front_sums_geq_0: "Max (front_sums xs) \<ge> 0"
+proof-
+  have "[] \<in> fronts xs" unfolding fronts_def by blast
+  then have "0 \<in> front_sums xs" unfolding front_sums_def by force
+  then show ?thesis using finite_front_sums Max_ge by simp
+qed
+
+lemma Max_mid_sums_geq_0: "Max (mid_sums xs) \<ge> 0"
+proof-
+  have "0 \<in> mid_sums xs" unfolding mid_sums_def mids_def by force
+  then show ?thesis using finite_mid_sums Max_ge by simp
+qed
+
+lemma kadane: "m \<ge> cur \<Longrightarrow> m \<ge> 0 \<Longrightarrow> kadane xs cur m = max m (max (cur + Max (front_sums xs)) (Max (mid_sums xs)))"
+proof (induction xs cur m rule: kadane.induct)
+  case (1 cur m)
+  then show ?case unfolding front_sums_def fronts_def mid_sums_def mids_def by auto
+next
+  case (2 x xs cur m)
+  then show ?case
+    apply (auto simp: max_front_sum max_mid_sums_cons Let_def)
+    by (smt (verit, ccfv_threshold) Max_front_sums_geq_0 add_assoc add_0_right max.assoc max.coboundedI1 max.left_commute max.orderE max_add_distrib_left max_add_distrib_right)
+qed
+
+lemma Max_front_sums_leq_Max_mid_sums: "Max (front_sums xs) \<le> Max (mid_sums xs)"
+proof-
+  have "front_sums xs \<subseteq> mid_sums xs" unfolding front_sums_def mid_sums_def using fronts_mids subset_iff by blast
+  then show ?thesis using front_sums_not_empty finite_mid_sums Max_mono by blast
+qed
+
+lemma mss_kadane_mid_sums: "mss_kadane xs = Max (mid_sums xs)"
+  unfolding mss_kadane_def using kadane Max_mid_sums_geq_0 Max_front_sums_leq_Max_mid_sums by auto
+
+theorem mss_kadane: "mss_kadane xs = Max {s. \<exists>as bs cs. xs = as @ bs @ cs \<and> s = sum_list bs}"
+  using mss_kadane_mid_sums mid_sums by auto
+
+end
 
 end
