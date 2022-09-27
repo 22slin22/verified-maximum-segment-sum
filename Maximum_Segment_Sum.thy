@@ -11,10 +11,18 @@ the Wikipedia article ``Maximum subarray problem''
 \<^url>\<open>https://en.wikipedia.org/wiki/Maximum_subarray_problem\<close> is a good starting point.
 
 We assume that the elements of the list are not necessarily numbers but just elements
-of some linearly ordered additive Abelian group.\<close>
+of some linearly ordered group.\<close>
 
-context linordered_ab_group_add
+class linordered_group_add = linorder + group_add +
+assumes add_left_mono: "a \<le> b \<Longrightarrow> c + a \<le> c + b"
+assumes add_right_mono: "a \<le> b \<Longrightarrow> a + c \<le> b + c"
 begin
+
+lemma max_add_distrib_left: "max y z + x = max (y+x) (z+x)"
+by (metis add_right_mono max.absorb_iff1 max_def)
+
+lemma max_add_distrib_right: "x + max y z = max (x+y) (x+z)"
+by (metis add_left_mono max.absorb1 max.cobounded2 max_def)
 
 subsection \<open>Naive Solution\<close>
 
